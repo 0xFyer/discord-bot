@@ -21,27 +21,29 @@ const (
 )
 
 type Game struct {
-	HeaderID string
-	ThreadID string
-	Players  map[string]Player
-	Status   GameStatus
+	Players map[string]Player
+	Status  GameStatus
 }
 
 type Player struct {
-	Status PlayerStatus
+	Status   PlayerStatus
+	HeaderID string
+	ThreadID string
 }
 
 func (i *info) AddNewGame(pcID string, tcID string, hID string, pID string) {
 	i.Games[pcID] = Game{
-		HeaderID: hID,
-		ThreadID: tcID,
-		Players:  map[string]Player{pID: {Status: PlayerStatus(WAITING)}},
-		Status:   GameStatus(DEALING),
+		Players: map[string]Player{pID: {Status: PlayerStatus(WAITING),
+			HeaderID: hID,
+			ThreadID: tcID,
+		},
+		},
+		Status: GameStatus(DEALING),
 	}
 }
 
-func (i *info) AddPlayer(pcID string, pID string) {
-	i.Games[pcID].Players[pID] = Player{Status: PlayerStatus(WAITING)}
+func (i *info) AddPlayer(pcID string, pID string, tID string, hID string) {
+	i.Games[pcID].Players[pID] = Player{Status: PlayerStatus(WAITING), HeaderID: hID, ThreadID: tID}
 }
 
 func (i *info) GameHasPlayer(pcID string, pID string) bool {
@@ -49,19 +51,19 @@ func (i *info) GameHasPlayer(pcID string, pID string) bool {
 	return has
 }
 
-func (i *info) ParentChannelHasGame(id string) bool {
-	_, has := i.Games[id]
+func (i *info) ParentChannelHasGame(ID string) bool {
+	_, has := i.Games[ID]
 	return has
 }
 
-func (i *info) GetPlayers(id string) map[string]Player {
-	return i.Games[id].Players
+func (i *info) GetPlayers(ID string) map[string]Player {
+	return i.Games[ID].Players
 }
 
-func (i *info) GetHeader(id string) string {
-	return i.Games[id].HeaderID
+func (i *info) GetHeader(gID string, pID string) string {
+	return i.Games[gID].Players[pID].HeaderID
 }
 
-func (i *info) GetThread(id string) string {
-	return i.Games[id].ThreadID
+func (i *info) GetThread(gID string, pID string) string {
+	return i.Games[gID].Players[pID].ThreadID
 }

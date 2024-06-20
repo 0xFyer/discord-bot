@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/0xfyer/discord-bot/state"
@@ -20,6 +19,7 @@ func main() {
 }
 
 func run() error {
+	fmt.Println(os.Getenv("DISCORD_SECRET"))
 	session, err := discordgo.New("Bot " + os.Getenv("DISCORD_SECRET"))
 	if err != nil {
 		return err
@@ -57,7 +57,17 @@ func run() error {
 
 			if state.Info.ParentChannelHasGame(i.ChannelID) {
 				if !state.Info.GameHasPlayer(i.ChannelID, i.Member.User.ID) {
-					state.Info.AddPlayer(i.ChannelID, i.Member.User.ID)
+					thread, err := s.ThreadStart(i.ChannelID, "Blackjack Table", 0, 60)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					header, err := s.ChannelMessageSend(thread.ID, fmt.Sprintf("<@%s>", i.Member.User.ID))
+					if err != nil {
+						return
+					}
+					state.Info.AddPlayer(i.ChannelID, i.Member.User.ID, thread.ID, header.ID)
 				}
 				return
 			}
@@ -74,85 +84,6 @@ func run() error {
 			}
 
 			state.Info.AddNewGame(i.ChannelID, thread.ID, header.ID, i.Member.User.ID)
-
-			_, err = s.ChannelMessageSendComplex(thread.ID, &discordgo.MessageSend{
-				Flags:   1 << 6,
-				Content: "Your move...",
-				Components: []discordgo.MessageComponent{
-					discordgo.ActionsRow{
-						Components: []discordgo.MessageComponent{
-							discordgo.Button{
-								Label: "Hit",
-								Emoji: &discordgo.ComponentEmoji{
-									Name: "💥",
-								},
-								Style:    discordgo.PrimaryButton,
-								CustomID: "hit",
-								Disabled: false,
-							},
-							discordgo.Button{
-								Label: "Stand",
-								Emoji: &discordgo.ComponentEmoji{
-									Name: "🤌🏻",
-								},
-								Style:    discordgo.SecondaryButton,
-								CustomID: "stand",
-								Disabled: false,
-							},
-						},
-					},
-				},
-			})
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-		}
-	})
-	// When the bot views a message
-	session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		args := strings.Split(m.Message.Content, " ")
-
-		switch args[0] {
-		case "/blackjack":
-			ch, err := s.State.Channel(m.ChannelID)
-			if err != nil {
-				return
-			}
-
-			if ch.IsThread() {
-				return
-			}
-
-			if state.Info.ParentChannelHasGame(m.ChannelID) {
-				if !state.Info.GameHasPlayer(m.ChannelID, m.Author.ID) {
-					state.Info.AddPlayer(m.ChannelID, m.Author.ID)
-				}
-				return
-			}
-
-			thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordgo.ThreadStart{
-				Name:                "Blackjack Table",
-				AutoArchiveDuration: 60,
-				Invitable:           true,
-				RateLimitPerUser:    10,
-			})
-
-			if err != nil {
-				return
-			}
-
-			header, err := s.ChannelMessageSend(thread.ID, "Greetings")
-			if err != nil {
-				return
-			}
-
-			state.Info.AddNewGame(m.ChannelID, thread.ID, header.ID, m.Author.ID)
-
-			header, err = s.ChannelMessageEdit(thread.ID, header.ID, "Changed")
-			if err != nil {
-				return
-			}
 
 			_, err = s.ChannelMessageSendComplex(thread.ID, &discordgo.MessageSend{
 				Flags:   1 << 6,

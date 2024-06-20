@@ -19,7 +19,6 @@ func main() {
 }
 
 func run() error {
-	fmt.Println(os.Getenv("DISCORD_SECRET"))
 	session, err := discordgo.New("Bot " + os.Getenv("DISCORD_SECRET"))
 	if err != nil {
 		return err
@@ -46,7 +45,7 @@ func run() error {
 				return
 			}
 
-			ch, err := s.State.Channel(i.ChannelID)
+			ch, err := s.State.Channel(i.GuildID)
 			if err != nil {
 				return
 			}
@@ -55,8 +54,8 @@ func run() error {
 				return
 			}
 
-			if state.Info.ParentChannelHasGame(i.ChannelID) {
-				if !state.Info.GameHasPlayer(i.ChannelID, i.Member.User.ID) {
+			if state.Info.GuildHasGame(i.GuildID) {
+				if !state.Info.GameHasPlayer(i.GuildID, i.Member.User.ID) {
 					thread, err := s.ThreadStart(i.ChannelID, "Blackjack Table", 0, 60)
 					if err != nil {
 						fmt.Println(err)
@@ -67,7 +66,7 @@ func run() error {
 					if err != nil {
 						return
 					}
-					state.Info.AddPlayer(i.ChannelID, i.Member.User.ID, thread.ID, header.ID)
+					state.Info.AddPlayer(i.GuildID, i.Member.User.ID, thread.ID, header.ID)
 				}
 				return
 			}
@@ -83,7 +82,7 @@ func run() error {
 				return
 			}
 
-			state.Info.AddNewGame(i.ChannelID, thread.ID, header.ID, i.Member.User.ID)
+			state.Info.AddNewGame(i.GuildID, thread.ID, header.ID, i.Member.User.ID)
 
 			_, err = s.ChannelMessageSendComplex(thread.ID, &discordgo.MessageSend{
 				Flags:   1 << 6,

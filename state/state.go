@@ -5,7 +5,7 @@ var Info info = info{
 }
 
 type info struct {
-	// The Key is always a Channel ID
+	// The Key is always a Guild ID
 	Games map[string]Game
 }
 
@@ -31,8 +31,8 @@ type Player struct {
 	ThreadID string
 }
 
-func (i *info) AddNewGame(pcID string, tcID string, hID string, pID string) {
-	i.Games[pcID] = Game{
+func (i *info) AddNewGame(gID string, tcID string, hID string, pID string) {
+	i.Games[gID] = Game{
 		Players: map[string]Player{pID: {Status: PlayerStatus(WAITING),
 			HeaderID: hID,
 			ThreadID: tcID,
@@ -42,16 +42,16 @@ func (i *info) AddNewGame(pcID string, tcID string, hID string, pID string) {
 	}
 }
 
-func (i *info) AddPlayer(pcID string, pID string, tID string, hID string) {
-	i.Games[pcID].Players[pID] = Player{Status: PlayerStatus(WAITING), HeaderID: hID, ThreadID: tID}
+func (i *info) AddPlayer(gID string, pID string, tID string, hID string) {
+	i.Games[gID].Players[pID] = Player{Status: PlayerStatus(WAITING), HeaderID: hID, ThreadID: tID}
 }
 
-func (i *info) GameHasPlayer(pcID string, pID string) bool {
-	_, has := i.Games[pcID].Players[pID]
+func (i *info) GameHasPlayer(gID string, pID string) bool {
+	_, has := i.Games[gID].Players[pID]
 	return has
 }
 
-func (i *info) ParentChannelHasGame(ID string) bool {
+func (i *info) GuildHasGame(ID string) bool {
 	_, has := i.Games[ID]
 	return has
 }

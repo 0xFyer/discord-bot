@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/0xfyer/discord-bot/game"
 	"github.com/0xfyer/discord-bot/game/blackjack"
 	"github.com/0xfyer/discord-bot/storage"
 	"github.com/bwmarrin/discordgo"
@@ -15,7 +14,7 @@ type Bot struct {
 	state   *storage.State
 }
 
-func New(secret string, game game.Game) (*Bot, error) {
+func New(secret string) (*Bot, error) {
 	session, err := discordgo.New("Bot " + secret)
 	if err != nil {
 		return nil, err
@@ -37,6 +36,13 @@ func (b *Bot) Open(stop chan os.Signal) error {
 		stop <- os.Kill
 	}
 	defer b.session.Close()
+
+	err = b.DefaultCommands()
+	if err != nil {
+		fmt.Printf("error creating default commands: %s\n", err)
+		stop <- os.Kill
+	}
+
 	<-stop
 	return nil
 }
@@ -71,16 +77,7 @@ func (b *Bot) DefaultHandlers() {
 
 		switch i.ApplicationCommandData().Name {
 		case "blackjack":
-			ch, err := s.State.Channel(guildID)
-			if err != nil {
-				return
-			}
-
-			if ch.IsThread() {
-				return
-			}
-
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: ":white_check_mark:",
@@ -88,7 +85,17 @@ func (b *Bot) DefaultHandlers() {
 				},
 			})
 			if err != nil {
-				fmt.Printf("error responsding to /blackjack: %s", err)
+				fmt.Printf("error responsding to /blackjack: %s\n", err)
+				return
+			}
+
+			ch, err := s.State.Channel(channelID)
+			if err != nil {
+				fmt.Printf("error getting channel: %s\n", err)
+				return
+			}
+
+			if ch.IsThread() {
 				return
 			}
 
@@ -107,13 +114,13 @@ func (b *Bot) DefaultHandlers() {
 			// Add caller to the game and start their thread
 			thread, err := s.ThreadStart(channelID, "Blackjack Table", 0, 60)
 			if err != nil {
-				fmt.Printf("error creating game thread: %s", err)
+				fmt.Printf("error creating game thread: %s\n", err)
 				return
 			}
 
 			header, err := s.ChannelMessageSend(thread.ID, fmt.Sprintf("<@%s>", playerID))
 			if err != nil {
-				fmt.Printf("error creating game thread header: %s", err)
+				fmt.Printf("error creating game thread header: %s\n", err)
 				return
 			}
 
@@ -149,7 +156,7 @@ func (b *Bot) DefaultHandlers() {
 				},
 			})
 			if err != nil {
-				fmt.Printf("failed sending the game thread message to a new player: %s", err)
+				fmt.Printf("failed sending the game thread message to a new player: %s\n", err)
 				return
 			}
 		}
@@ -197,7 +204,7 @@ func (b *Bot) DefaultHandlers() {
 				},
 			})
 			if err != nil {
-				fmt.Printf("failed responding to a component interaction: %s", err)
+				fmt.Printf("failed responding to a component interaction: %s\n", err)
 				return
 			}
 		}

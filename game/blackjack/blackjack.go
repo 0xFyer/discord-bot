@@ -1,3 +1,3 @@
 package blackjack
 
-type Blackjack struct{}
+type Game struct{}

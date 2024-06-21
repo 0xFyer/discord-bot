@@ -1,5 +1,7 @@
 package storage
 
+import "github.com/0xfyer/discord-bot/game"
+
 type State struct {
 	// The Key is always a Guild ID
 	Games map[string]Game
@@ -19,6 +21,7 @@ const (
 type Game struct {
 	Players map[string]Player
 	Status  GameStatus
+	Game    game.Game
 }
 
 type Player struct {
@@ -34,14 +37,11 @@ func New() *State {
 
 }
 
-func (i *State) AddNewGame(gID string, tcID string, hID string, pID string) {
+func (i *State) AddNewGame(gID string, game game.Game) {
 	i.Games[gID] = Game{
-		Players: map[string]Player{pID: {Status: PlayerStatus(WAITING),
-			HeaderID: hID,
-			ThreadID: tcID,
-		},
-		},
-		Status: GameStatus(DEALING),
+		Game:    game,
+		Players: map[string]Player{},
+		Status:  GameStatus(DEALING),
 	}
 }
 
@@ -54,7 +54,7 @@ func (i *State) GameHasPlayer(gID string, pID string) bool {
 	return has
 }
 
-func (i *State) GuildHasGame(ID string) bool {
+func (i *State) GuildHasGame(ID string, game game.Game) bool {
 	_, has := i.Games[ID]
 	return has
 }

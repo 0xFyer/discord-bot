@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/0xfyer/discord-bot/game"
+	"github.com/0xfyer/discord-bot/game/blackjack"
 	"github.com/0xfyer/discord-bot/storage"
 	"github.com/bwmarrin/discordgo"
 )
@@ -13,7 +15,7 @@ type Bot struct {
 	state   *storage.State
 }
 
-func New(secret string) (*Bot, error) {
+func New(secret string, game game.Game) (*Bot, error) {
 	session, err := discordgo.New("Bot " + secret)
 	if err != nil {
 		return nil, err
@@ -63,26 +65,13 @@ func (b *Bot) DefaultHandlers() {
 
 	// When someone uses a slash command (i.e. /blackjack)
 	b.session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		guildID := i.GuildID
+		playerID := i.Member.User.ID
+		channelID := i.ChannelID
+
 		switch i.ApplicationCommandData().Name {
 		case "blackjack":
-			// check if game exists in this guild
-			// if not, create a new game in this guild
-			// if it exists, check if calling user is in the game
-			// if not, add them to the game
-
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: ":white_check_mark:",
-					Flags:   1 << 6,
-				},
-			})
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			ch, err := s.State.Channel(i.GuildID)
+			ch, err := s.State.Channel(guildID)
 			if err != nil {
 				return
 			}
@@ -91,36 +80,46 @@ func (b *Bot) DefaultHandlers() {
 				return
 			}
 
-			if b.state.GuildHasGame(i.GuildID) {
-				if !b.state.GameHasPlayer(i.GuildID, i.Member.User.ID) {
-					thread, err := s.ThreadStart(i.ChannelID, "Blackjack Table", 0, 60)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					header, err := s.ChannelMessageSend(thread.ID, fmt.Sprintf("<@%s>", i.Member.User.ID))
-					if err != nil {
-						return
-					}
-					b.state.AddPlayer(i.GuildID, i.Member.User.ID, thread.ID, header.ID)
-				}
-				return
-			}
-
-			thread, err := s.ThreadStart(i.ChannelID, "Blackjack Table", 0, 60)
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: ":white_check_mark:",
+					Flags:   1 << 6,
+				},
+			})
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("error responsding to /blackjack: %s", err)
 				return
 			}
 
-			header, err := s.ChannelMessageSend(thread.ID, fmt.Sprintf("<@%s>", i.Member.User.ID))
+			bj := blackjack.Game{}
+
+			// Guild has no game -- make one
+			if !b.state.GuildHasGame(guildID, bj) {
+				b.state.AddNewGame(guildID, bj)
+			}
+
+			// Caller is already in the game -- do nothing
+			if b.state.GameHasPlayer(guildID, playerID) {
+				return
+			}
+
+			// Add caller to the game and start their thread
+			thread, err := s.ThreadStart(channelID, "Blackjack Table", 0, 60)
 			if err != nil {
+				fmt.Printf("error creating game thread: %s", err)
 				return
 			}
 
-			b.state.AddNewGame(i.GuildID, thread.ID, header.ID, i.Member.User.ID)
+			header, err := s.ChannelMessageSend(thread.ID, fmt.Sprintf("<@%s>", playerID))
+			if err != nil {
+				fmt.Printf("error creating game thread header: %s", err)
+				return
+			}
 
+			b.state.AddPlayer(guildID, playerID, thread.ID, header.ID)
+
+			// Create the game thread for this player
 			_, err = s.ChannelMessageSendComplex(thread.ID, &discordgo.MessageSend{
 				Flags:   1 << 6,
 				Content: "Your move...",
@@ -150,13 +149,13 @@ func (b *Bot) DefaultHandlers() {
 				},
 			})
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("failed sending the game thread message to a new player: %s", err)
 				return
 			}
 		}
 	})
 
-	// Handle Component Interactions
+	// When someone clicks a button
 	b.session.AddHandler(func(s *discordgo.Session, m *discordgo.InteractionCreate) {
 		switch m.Type {
 		case discordgo.InteractionMessageComponent:
@@ -198,7 +197,7 @@ func (b *Bot) DefaultHandlers() {
 				},
 			})
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("failed responding to a component interaction: %s", err)
 				return
 			}
 		}

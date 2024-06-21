@@ -1,3 +1,4 @@
 package game
 
-type Game interface{}
+type Game interface {
+}

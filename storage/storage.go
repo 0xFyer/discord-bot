@@ -1,10 +1,6 @@
-package state
+package storage
 
-var Info info = info{
-	Games: map[string]Game{},
-}
-
-type info struct {
+type State struct {
 	// The Key is always a Guild ID
 	Games map[string]Game
 }
@@ -31,7 +27,14 @@ type Player struct {
 	ThreadID string
 }
 
-func (i *info) AddNewGame(gID string, tcID string, hID string, pID string) {
+func New() *State {
+	return &State{
+		Games: map[string]Game{},
+	}
+
+}
+
+func (i *State) AddNewGame(gID string, tcID string, hID string, pID string) {
 	i.Games[gID] = Game{
 		Players: map[string]Player{pID: {Status: PlayerStatus(WAITING),
 			HeaderID: hID,
@@ -42,28 +45,28 @@ func (i *info) AddNewGame(gID string, tcID string, hID string, pID string) {
 	}
 }
 
-func (i *info) AddPlayer(gID string, pID string, tID string, hID string) {
+func (i *State) AddPlayer(gID string, pID string, tID string, hID string) {
 	i.Games[gID].Players[pID] = Player{Status: PlayerStatus(WAITING), HeaderID: hID, ThreadID: tID}
 }
 
-func (i *info) GameHasPlayer(gID string, pID string) bool {
+func (i *State) GameHasPlayer(gID string, pID string) bool {
 	_, has := i.Games[gID].Players[pID]
 	return has
 }
 
-func (i *info) GuildHasGame(ID string) bool {
+func (i *State) GuildHasGame(ID string) bool {
 	_, has := i.Games[ID]
 	return has
 }
 
-func (i *info) GetPlayers(ID string) map[string]Player {
+func (i *State) GetPlayers(ID string) map[string]Player {
 	return i.Games[ID].Players
 }
 
-func (i *info) GetHeader(gID string, pID string) string {
+func (i *State) GetHeader(gID string, pID string) string {
 	return i.Games[gID].Players[pID].HeaderID
 }
 
-func (i *info) GetThread(gID string, pID string) string {
+func (i *State) GetThread(gID string, pID string) string {
 	return i.Games[gID].Players[pID].ThreadID
 }

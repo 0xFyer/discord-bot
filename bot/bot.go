@@ -125,6 +125,7 @@ func (b *Bot) DefaultHandlers() {
 			}
 
 			b.state.AddPlayer(guildID, playerID, thread.ID, header.ID)
+			b.state.AddPlayer(guildID, b.session.State.User.ID, "", "")
 
 			// Create the game thread for this player
 			_, err = s.ChannelMessageSendComplex(thread.ID, &discordgo.MessageSend{
@@ -159,6 +160,28 @@ func (b *Bot) DefaultHandlers() {
 				fmt.Printf("failed sending the game thread message to a new player: %s\n", err)
 				return
 			}
+
+			// update the header for all players
+			msg := "# Hands\n"
+			for id := range b.state.GetPlayers(guildID) {
+				u, err := s.User(id)
+				if err != nil {
+					fmt.Printf("failed looking up player by their id: %s\n", err)
+				}
+				msg += u.String() + "\n"
+			}
+
+			for id, player := range b.state.GetPlayers(guildID) {
+				if id == b.session.State.User.ID {
+					continue
+				}
+
+				_, err = s.ChannelMessageEdit(player.ThreadID, player.HeaderID, msg)
+				if err != nil {
+					fmt.Printf("failed updating header: %s", err)
+				}
+			}
+
 		}
 	})
 
